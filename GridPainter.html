@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Paint</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap">
+    <link rel="stylesheet" href="GridPainter.css">
+</head>
+<body>
+    
+    <div id="controls">
+        <div class="control-group">
+            <strong>Рисование:</strong>
+            <!-- Добавлены кнопки выбора инструмента -->
+            <button onclick="setInstrument('brush')">Кисточка</button>
+            <button onclick="setInstrument('rectangle')">Прямоугольник</button>
+            <button onclick="setInstrument('eraser')">Ластик</button>
+            <!-- Можно скрыть или убрать существующий выбор цвета/размера для кисточки, если не нужен -->
+            <label for="colorPicker">Цвет:</label>
+            <input type="color" id="colorPicker" value="#000000">
+            <label for="brushSize">Размер:</label>
+            <input type="number" id="brushSize" value="1" min="1">
+        </div>
+        <div class="control-group">
+            <strong>Операции:</strong>
+            <button onclick="clearCanvas()">Очистить</button>
+            <button onclick="saveCanvas()">Сохранить</button>
+        </div>
+        <div class="control-group">
+            <strong>Сетка:</strong>
+            <label for="gridWidth">X:</label>
+            <input type="number" id="gridWidth" value="56">
+            <label for="gridHeight">Y:</label>
+            <input type="number" id="gridHeight" value="56">
+            <label for="cellSize">Размер ячейки:</label>
+            <input type="number" id="cellSize" value="20">
+            <label for="gridThickness">Толщина сетки:</label>
+            <input type="number" id="gridThickness" value="0.5" min="0.1" step="0.1">
+            <button onclick="resizeCanvas()">Применить</button>
+            <label for="gridLayer">Положение:</label>
+            <select id="gridLayer" onchange="updateGridLayer()">
+                <option value="bottom">Под линиями</option>
+                <option value="top">Поверх всего</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <strong>Оформление:</strong>
+            <label for="backgroundColorPicker">Фон:</label>
+            <input type="color" id="backgroundColorPicker" value="#ffffff" onchange="changeBackground()">
+            <label for="themeSelector">Тема:</label>
+            <select id="themeSelector" onchange="changeTheme()">
+                <option value="light">Светлая</option>
+                <option value="dark" selected>Тёмная</option>
+            </select>
+            <label for="cellColorPicker">Сетка:</label>
+            <input type="color" id="cellColorPicker" value="#dddddd" onchange="changeCellColor()">
+        </div>
+        <div class="control-group">
+            <strong>Выделение:</strong>
+            <button onclick="activateSelectionMode()">Выделить область</button>
+            <button onclick="saveSelection()">Сохранить выделение</button>
+            <button onclick="deleteSelectionMode()">Удалить область</button>
+            <label for="selectionColorPicker">Цвет выделения:</label>
+            <input type="color" id="selectionColorPicker" value="#0000ff">
+            <span id="selectionInfo"></span>
+        </div>
+    </div>
+    <div id="canvasContainer">
+        <canvas id="grid"></canvas>
+        <canvas id="canvas"></canvas>
+        <canvas id="overlay"></canvas>
+        <!-- Добавляем новый слой для сохранённых областей -->
+        <canvas id="savedOverlay"></canvas>
+    </div>
+    <script src="GridPainter.js"></script>
+</body>
+</html>

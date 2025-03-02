@@ -1,0 +1,82 @@
+body { 
+    margin: 0;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; /* добавлено для вертикального центрирования */
+    min-height: 100vh;       /* чтобы тело занимало весь экран */
+    font-family: 'Roboto', sans-serif; 
+    background-color: #f0f0f0;
+}
+#canvasContainer {
+    position: relative;
+    margin: 20px auto; /* центрирование по горизонтали с небольшим отступом сверху */
+    /* Убираем max-width и max-height, чтобы размеры задавались только через JS */
+    border: 1px solid black; /* Перенесли border с canvas на контейнер */
+    background-color: white;
+}
+#grid, 
+#canvas, 
+#overlay,
+#savedOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* Удалены width и height, чтобы использовать размеры, установленные через JS */
+    margin: 0;        /* Убираем все отступы */
+    padding: 0;
+}
+/* По умолчанию, если сетка под линиями */
+#grid {
+    z-index: 1;
+    pointer-events: none;  /* Важно: grid никогда не должен перехватывать события */
+}
+#canvas { 
+    background-color: transparent; /* Убираем фон с canvas */
+    border: none;                 /* Убираем border с canvas */
+    z-index: 2;           /* Canvas всегда выше сетки */
+}
+/* Новый overlay‑холст всегда поверх основного и не перехватывает события */
+#overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 3;           /* Overlay всегда самый верхний */
+}
+#savedOverlay {
+    z-index: 20; /* Значительно увеличиваем z-index */
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+#controls { 
+    margin: 5px; 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 10px; 
+}
+    /* Изменённые стили для компактных групп управления */
+.control-group {
+    border: 1px solid #ccc;
+    padding: 5px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+}
+.control-group strong {
+    margin-right: 5px;
+}
+.control-group h3 {
+    margin-top: 0;
+    font-size: 1.1em;
+}
+
+.control-group input {
+    width: 60px; /* уменьшенная ширина */
+    /* при необходимости можно добавить другие стили, например, height или font-size */
+}
