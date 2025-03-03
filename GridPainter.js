@@ -274,6 +274,7 @@ canvas.addEventListener('mouseup', (e) => {
         redrawAllLayers();
         rectangleStart = null;
         rectangleEnd = null;
+        saveProgressToCache(); // Сохраняем прогресс после рисования прямоугольника
     } else if (instrument === 'line' && lineDrawing) {
         lineDrawing = false;
         lineEnd = getGridIntersection(e);
@@ -288,8 +289,13 @@ canvas.addEventListener('mouseup', (e) => {
         currentLayer.ctx.stroke();
         currentLayer.ctx.restore();
         redrawAllLayers();
+        saveProgressToCache(); // Сохраняем прогресс после отрисовки линии
     } else {
         drawing = false;
+        // Если завершилось рисование кистью, сохраняем прогресс
+        if (instrument === 'brush' || instrument === 'eraser') {
+            saveProgressToCache();
+        }
     }
 });
 
@@ -413,7 +419,11 @@ function clearCanvas() {
     drawGrid();
     overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
     // Не очищаем savedOverlay – оставляем сохранённые области нетронутыми
-    // (Удаляем вызов savedOverlayCtx.clearRect(...))
+    
+    // Очищаем кеш – удаляем все сохранённые данные
+    localStorage.removeItem('gridPainterProgress');
+    localStorage.removeItem('gridPainterLayers');
+    localStorage.removeItem('gridPainterSettings');
 }
 
 function saveCanvas() {
@@ -557,6 +567,7 @@ window.addEventListener('load', function() {
     updateGridLayer();
     // Вызываем updateGridDimensions() только если размеры реально нужно задать,
     // иначе кисточными рисунки сохраняются
+    loadProgressFromCache();
 });
 
 drawGrid();
@@ -1100,6 +1111,7 @@ function deleteLayer(path) {
         selectedNestedLayer = layers[0];
     }
     redrawAllLayers();
+    saveProgressToCache(); // Добавлено: обновление сохранения после удаления слоя
 }
 
 function moveLayer(fromIndex, toIndex) {
@@ -1357,6 +1369,7 @@ function deleteLayer(path) {
         selectedNestedLayer = layers[0];
     }
     redrawAllLayers();
+    saveProgressToCache(); // Добавлено: обновление сохранения после удаления слоя
 }
 
 /* ...existing code... */
@@ -1452,6 +1465,7 @@ function deleteLayer(path) {
         selectedNestedLayer = layers[0];
     }
     redrawAllLayers();
+    saveProgressToCache(); // Добавлено: обновление сохранения после удаления слоя
 }
 
 /* ...existing code... */
@@ -1478,6 +1492,7 @@ function deleteLayer(path) {
         selectedNestedLayer = layers[0];
     }
     redrawAllLayers();
+    saveProgressToCache(); // Добавлено: обновление сохранения после удаления слоя
 }
 
 /* ...existing code... */
@@ -1634,6 +1649,7 @@ canvas.addEventListener('mouseup', (e) => {
         redrawAllLayers();
         rectangleStart = null;
         rectangleEnd = null;
+        saveProgressToCache(); // Сохраняем прогресс после рисования прямоугольника
     } else if (instrument === 'line' && lineDrawing) {
         lineDrawing = false;
         lineEnd = getGridIntersection(e);
@@ -1648,8 +1664,13 @@ canvas.addEventListener('mouseup', (e) => {
         currentLayer.ctx.stroke();
         currentLayer.ctx.restore();
         redrawAllLayers();
+        saveProgressToCache(); // Сохраняем прогресс после отрисовки линии
     } else {
         drawing = false;
+        // Если завершилось рисование кистью, сохраняем прогресс
+        if (instrument === 'brush' || instrument === 'eraser') {
+            saveProgressToCache();
+        }
     }
 });
 
@@ -1755,4 +1776,138 @@ function redrawAllLayers() {
     }
     
     drawLayerContent(layers);
+}
+
+// Добавляем функции для работы с кешем
+function saveProgressToCache() {
+    // Сохраняем содержимое canvas
+    const mainCanvasData = canvas.toDataURL('image/png');
+    localStorage.setItem('gridPainterProgress', mainCanvasData);
+
+    // Сохраняем структуру слоёв
+    const layersData = layers.map(layer => {
+        if (layer.isFolder) {
+            return {
+                name: layer.name,
+                isFolder: true,
+                visible: layer.visible,
+                collapsed: layer.collapsed,
+                folderColor: layer.folderColor,
+                layers: layer.layers.map(subLayer => ({
+                    name: subLayer.name,
+                    visible: subLayer.visible,
+                    canvasData: subLayer.canvas?.toDataURL('image/png'),
+                    selections: subLayer.selections || []
+                }))
+            };
+        } else {
+            return {
+                name: layer.name,
+                visible: layer.visible,
+                canvasData: layer.canvas.toDataURL('image/png'),
+                selections: layer.selections || []
+            };
+        }
+    });
+    localStorage.setItem('gridPainterLayers', JSON.stringify(layersData));
+
+    // Сохраняем остальные изменяемые параметры
+    const settings = {
+        cellSize,
+        gridWidth,
+        gridHeight,
+        gridThickness,
+        backgroundColor,
+        cellColor,
+        brushSize,
+        selectionColor,
+        theme: document.getElementById('themeSelector').value
+    };
+    localStorage.setItem('gridPainterSettings', JSON.stringify(settings));
+}
+
+function loadProgressFromCache() {
+    // Загружаем сохранённые параметры
+    const settingsData = localStorage.getItem('gridPainterSettings');
+    if (settingsData) {
+        const settings = JSON.parse(settingsData);
+        cellSize = settings.cellSize;
+        gridWidth = settings.gridWidth;
+        gridHeight = settings.gridHeight;
+        gridThickness = settings.gridThickness;
+        backgroundColor = settings.backgroundColor;
+        cellColor = settings.cellColor;
+        brushSize = settings.brushSize;
+        selectionColor = settings.selectionColor;
+        // Обновляем значения элементов управления
+        document.getElementById('cellSize').value = cellSize;
+        document.getElementById('gridWidth').value = gridWidth;
+        document.getElementById('gridHeight').value = gridHeight;
+        document.getElementById('gridThickness').value = gridThickness;
+        document.getElementById('backgroundColorPicker').value = backgroundColor;
+        document.getElementById('cellColorPicker').value = cellColor;
+        document.getElementById('brushSize').value = brushSize;
+        document.getElementById('selectionColorPicker').value = selectionColor;
+        // Устанавливаем сохранённую тему, если она есть
+        if (settings.theme) {
+            document.getElementById('themeSelector').value = settings.theme;
+        }
+        // Применяем сохранённое оформление
+        updateGridLayer();
+        changeTheme();
+    }
+    
+    // Загружаем структуру слоёв
+    const layersData = localStorage.getItem('gridPainterLayers');
+    if (layersData) {
+        const parsedLayers = JSON.parse(layersData);
+        layers = []; // Очищаем текущие слои
+
+        function createLayerFromData(layerData) {
+            if (layerData.isFolder) {
+                const folder = {
+                    name: layerData.name,
+                    isFolder: true,
+                    visible: layerData.visible,
+                    collapsed: layerData.collapsed,
+                    folderColor: layerData.folderColor,
+                    layers: layerData.layers.map(subLayerData => {
+                        const subLayer = createLayerFromData(subLayerData);
+                        subLayer.parent = folder;
+                        return subLayer;
+                    })
+                };
+                return folder;
+            } else {
+                const layer = {
+                    name: layerData.name,
+                    canvas: document.createElement('canvas'),
+                    visible: layerData.visible,
+                    selections: layerData.selections || [],
+                    rectangles: []
+                };
+                layer.canvas.width = canvas.width;
+                layer.canvas.height = canvas.height;
+                layer.ctx = layer.canvas.getContext('2d');
+
+                if (layerData.canvasData) {
+                    const img = new Image();
+                    img.onload = function() {
+                        layer.ctx.drawImage(img, 0, 0);
+                        redrawAllLayers();
+                    };
+                    img.src = layerData.canvasData;
+                }
+                return layer;
+            }
+        }
+        // Воссоздаём структуру слоёв
+        layers = parsedLayers.map(layerData => createLayerFromData(layerData));
+        // Если слоёв нет, создаём базовый слой
+        if (layers.length === 0) {
+            createLayer("Базовый слой");
+        }
+        updateLayerList();
+        redrawAllLayers();
+    }
 }
