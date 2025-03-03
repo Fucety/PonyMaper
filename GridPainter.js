@@ -49,6 +49,11 @@ let selectedArea = null; // Хранит информацию о выделен�
 // Добавляем флаг для отслеживания состояния выделения
 let isSelectingActive = false;
 
+// Добавляем новые переменные для инструмента "Стена"
+let wallDrawing = false;
+let wallStart = null;
+let wallEnd = null;
+
 /* Новая функция для перерисовки сохранённых прямоугольников */
 function redrawRectangles() {
     savedRectangles.forEach(function(rec) {
@@ -64,6 +69,17 @@ function redrawRectangles() {
 //     selectionColor = e.target.value;
 // });
 
+// Добавляем функцию для получения ближайшей точки пересечения с сеткой
+function getGridIntersection(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    return {
+        x: Math.round(mouseX / cellSize) * cellSize,
+        y: Math.round(mouseY / cellSize) * cellSize
+    };
+}
+
 function setInstrument(inst) {
     instrument = inst;
     if (inst !== 'selection') {
@@ -71,6 +87,12 @@ function setInstrument(inst) {
         selectionActive = false;
     }
     erasing = (inst === 'eraser');
+    // Для инструмента "wall" сбрасываем возможные предыдущие состояния
+    if(inst === 'wall'){
+        wallDrawing = false;
+        wallStart = null;
+        wallEnd = null;
+    }
 }
 
 // Функция очистки выделения
@@ -207,6 +229,9 @@ canvas.addEventListener('mousedown', (e) => {
             x: Math.floor((e.clientX - rect.left) / cellSize),
             y: Math.floor((e.clientY - rect.top) / cellSize)
         };
+    } else if (instrument === 'wall') {
+        wallDrawing = true;
+        wallStart = getGridIntersection(e);
     } else {
         drawing = true;
         draw(e);
@@ -250,6 +275,21 @@ canvas.addEventListener('mouseup', (e) => {
         redrawAllLayers();
         rectangleStart = null;
         rectangleEnd = null;
+    } else if (instrument === 'wall' && wallDrawing) {
+        wallDrawing = false;
+        wallEnd = getGridIntersection(e);
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+        const currentLayer = getActiveLayer();
+        currentLayer.ctx.save();
+        currentLayer.ctx.strokeStyle = color;
+        // Используем значение brushSize для толщины стены
+        currentLayer.ctx.lineWidth = parseInt(document.getElementById('brushSize').value);
+        currentLayer.ctx.beginPath();
+        currentLayer.ctx.moveTo(wallStart.x, wallStart.y);
+        currentLayer.ctx.lineTo(wallEnd.x, wallEnd.y);
+        currentLayer.ctx.stroke();
+        currentLayer.ctx.restore();
+        redrawAllLayers();
     } else {
         drawing = false;
     }
@@ -286,6 +326,18 @@ canvas.addEventListener('mousemove', (e) => {
         overlayCtx.fillStyle = "black";
         let textY = startY > 20 ? startY - 5 : startY + height + 20;
         overlayCtx.fillText(`Размер: ${cellsWidth} x ${cellsHeight}`, startX, textY);
+        overlayCtx.restore();
+    } else if (instrument === 'wall' && wallDrawing) {
+        wallEnd = getGridIntersection(e);
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+        overlayCtx.save();
+        overlayCtx.strokeStyle = color;
+        overlayCtx.lineWidth = gridThickness;
+        overlayCtx.setLineDash([5, 3]);
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(wallStart.x, wallStart.y);
+        overlayCtx.lineTo(wallEnd.x, wallEnd.y);
+        overlayCtx.stroke();
         overlayCtx.restore();
     } else if (instrument !== 'rectangle') {
         draw(e);
@@ -1584,6 +1636,21 @@ canvas.addEventListener('mouseup', (e) => {
         redrawAllLayers();
         rectangleStart = null;
         rectangleEnd = null;
+    } else if (instrument === 'wall' && wallDrawing) {
+        wallDrawing = false;
+        wallEnd = getGridIntersection(e);
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+        const currentLayer = getActiveLayer();
+        currentLayer.ctx.save();
+        currentLayer.ctx.strokeStyle = color;
+        // Используем значение brushSize для толщины стены
+        currentLayer.ctx.lineWidth = parseInt(document.getElementById('brushSize').value);
+        currentLayer.ctx.beginPath();
+        currentLayer.ctx.moveTo(wallStart.x, wallStart.y);
+        currentLayer.ctx.lineTo(wallEnd.x, wallEnd.y);
+        currentLayer.ctx.stroke();
+        currentLayer.ctx.restore();
+        redrawAllLayers();
     } else {
         drawing = false;
     }
