@@ -198,3 +198,35 @@ body {
     background-color: #ff9800;
     color: #fff;
 }
+
+#helpButton {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: #ff5858;
+    color: #fff;
+    font-size: 24px;
+    text-align: center;
+    line-height: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 100;
+}
+
+#helpPopup {
+    position: fixed;
+    bottom: 70px;
+    left: 20px;
+    max-width: 300px;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #333;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    z-index: 100;
+    display: none;
+    color: #000;
+    font-size: 14px;
+}
