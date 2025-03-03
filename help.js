@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const helpButton = document.getElementById('helpButton');
     const helpPopup = document.getElementById('helpPopup');
 
-    // Загружаем текст справки из help.txt
-    fetch('help.txt')
+    // Загружаем текст справки из help.txt с отключённым кешированием
+    fetch('help.txt', { cache: 'no-store' })
       .then(response => response.text())
       .then(text => {
          helpPopup.innerText = text;
