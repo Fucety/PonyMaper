@@ -20,18 +20,15 @@ let erasing = false;
 let brushSize = parseInt(document.getElementById('brushSize').value);
 let gridThickness = parseFloat(document.getElementById('gridThickness').value); // новая переменная с дробным значением
 
-let selectionMode = false;
-let isSelecting = false;
-let selectionStart = null;
-let selectionEnd = null;
-
 // Добавляем переменную для цвета выделения
 let selectionColor = document.getElementById('selectionColorPicker').value;
 
-let instrument = "brush";  // "brush" | "rectangle" | "eraser"
-let rectDrawing = false;
-let rectStart = null;
-let rectEnd = null;
+let instrument = "brush";  // "brush" | "eraser" | "rectangle"
+
+// Добавляем переменные для инструмента "rectangle"
+let isDrawingRectangle = false;
+let rectangleStart = null;
+let rectangleEnd = null;
 
 let savedRectangles = [];
 
@@ -42,6 +39,12 @@ let gridLayer = "bottom"; // по умолчанию "под линиями"
 
 // Флаг режима удаления выделения
 let deleteSelectionModeActive = false;
+
+// Добавляем переменные для выделения после существующих переменных
+let selectionActive = false;
+let selectionStart = null;
+let selectionEnd = null;
+let selectedArea = null; // Хранит информацию о выделенной области для текущего слоя
 
 /* Новая функция для перерисовки сохранённых прямоугольников */
 function redrawRectangles() {
@@ -54,23 +57,33 @@ function redrawRectangles() {
 }
 
 // Обновляем обработчик изменения цвета выделения
-document.getElementById('selectionColorPicker').addEventListener('input', (e) => {
-    selectionColor = e.target.value;
-});
+// document.getElementById('selectionColorPicker').addEventListener('input', (e) => {
+//     selectionColor = e.target.value;
+// });
 
 function setInstrument(inst) {
-    // Если есть активное выделение - отменяем его
-    if (selectionMode) {
-        selectionMode = false;
-        selectionStart = null;
-        selectionEnd = null;
-        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-        document.getElementById('selectionInfo').innerText = "";
-    }
-    
     instrument = inst;
-    // Если выбран ластик, включаем режим стирания
+    if (inst !== 'selection') {
+        clearSelection();
+        selectionActive = false;
+    }
     erasing = (inst === 'eraser');
+}
+
+// Функция очистки выделения
+function clearSelection() {
+    selectionStart = null;
+    selectionEnd = null;
+    selectedArea = null;
+    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+}
+
+// Добавляем функцию для активации инструмента выделения
+function activateSelectionTool() {
+    instrument = 'selection';
+    selectionActive = true;
+    // Очищаем предыдущее выделение
+    clearSelection();
 }
 
 // Обновляем размеры всех холстов
@@ -160,98 +173,101 @@ function getGridPosition(x, y) {
 }
 
 canvas.addEventListener('mousedown', (e) => {
-    if (selectionMode) {
-        isSelecting = true;
-        const rect = canvas.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
+    if (instrument === 'selection') {
         selectionStart = {
             x: Math.floor((e.clientX - rect.left) / cellSize),
             y: Math.floor((e.clientY - rect.top) / cellSize)
         };
-    }
-    else if (instrument === 'rectangle') {
-        rectDrawing = true;
-        const rectElem = canvas.getBoundingClientRect();
-        rectStart = {
-            x: Math.floor((e.clientX - rectElem.left) / cellSize),
-            y: Math.floor((e.clientY - rectElem.top) / cellSize)
+        selectionEnd = {...selectionStart};
+    } else if (instrument === 'rectangle') {
+        isDrawingRectangle = true;
+        rectangleStart = {
+            x: Math.floor((e.clientX - rect.left) / cellSize),
+            y: Math.floor((e.clientY - rect.top) / cellSize)
         };
-    }
-    else { // Для кисточки или ластика
+    } else {
         drawing = true;
         draw(e);
     }
 });
 
-/* Изменяем обработчик мыши для инструмента "rectangle" */
 canvas.addEventListener('mouseup', (e) => {
-    if (selectionMode && isSelecting) {
-        isSelecting = false;
-        const rect = canvas.getBoundingClientRect();
-        selectionEnd = {
+    const rect = canvas.getBoundingClientRect();
+    if (instrument === 'selection') {
+        if (selectionStart && selectionEnd) {
+            const currentLayer = getActiveLayer();
+            if (!currentLayer.isFolder) {
+                selectedArea = {
+                    layer: currentLayer,
+                    startX: Math.min(selectionStart.x, selectionEnd.x),
+                    startY: Math.min(selectionStart.y, selectionEnd.y),
+                    endX: Math.max(selectionStart.x, selectionEnd.x),
+                    endY: Math.max(selectionStart.y, selectionEnd.y)
+                };
+            }
+        }
+    } else if (instrument === 'rectangle' && isDrawingRectangle) {
+        isDrawingRectangle = false;
+        rectangleEnd = {
             x: Math.floor((e.clientX - rect.left) / cellSize),
             y: Math.floor((e.clientY - rect.top) / cellSize)
         };
-        const width = Math.abs(selectionEnd.x - selectionStart.x) + 1;
-        const height = Math.abs(selectionEnd.y - selectionStart.y) + 1;
-        document.getElementById('selectionInfo').innerText = `Область: ${width} x ${height} клеток`;
-        drawSelectionOverlay();
-    }
-    else if (instrument === 'rectangle' && rectDrawing) {
-        rectDrawing = false;
-        const rectElem = canvas.getBoundingClientRect();
-        rectEnd = {
-            x: Math.floor((e.clientX - rectElem.left) / cellSize),
-            y: Math.floor((e.clientY - rectElem.top) / cellSize)
-        };
         overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-        let startX = Math.min(rectStart.x, rectEnd.x) * cellSize;
-        let startY = Math.min(rectStart.y, rectEnd.y) * cellSize;
-        let endX = (Math.max(rectStart.x, rectEnd.x) + 1) * cellSize;
-        let endY = (Math.max(rectStart.y, rectEnd.y) + 1) * cellSize;
-        let rec = {
-            x: startX,
-            y: startY,
-            width: endX - startX,
-            height: endY - startY,
-            color: erasing ? backgroundColor : color
-        };
-        savedRectangles.push(rec);
-        // Вместо drawGrid() вызываем непосредственное рисование прямоугольника:
-        ctx.save();
-        ctx.fillStyle = rec.color;
-        ctx.fillRect(rec.x, rec.y, rec.width, rec.height);
-        ctx.restore();
-    }
-    else if (!selectionMode) {
+        let startX = Math.min(rectangleStart.x, rectangleEnd.x) * cellSize;
+        let startY = Math.min(rectangleStart.y, rectangleEnd.y) * cellSize;
+        let width = (Math.abs(rectangleEnd.x - rectangleStart.x) + 1) * cellSize;
+        let height = (Math.abs(rectangleEnd.y - rectangleStart.y) + 1) * cellSize;
+        const currentLayer = getActiveLayer();
+        currentLayer.ctx.save();
+        currentLayer.ctx.fillStyle = color;
+        currentLayer.ctx.fillRect(startX, startY, width, height);
+        currentLayer.ctx.restore();
+        currentLayer.rectangles.push({ x: startX, y: startY, width, height, color });
+        redrawAllLayers();
+        rectangleStart = null;
+        rectangleEnd = null;
+    } else {
         drawing = false;
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (selectionMode && isSelecting) {
-        const rect = canvas.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
+    if (instrument === 'selection' && selectionStart) {
         selectionEnd = {
             x: Math.floor((e.clientX - rect.left) / cellSize),
             y: Math.floor((e.clientY - rect.top) / cellSize)
         };
-        updateGridAppearance(); // Обновляем только сетку
         drawSelectionOverlay();
-    }
-    else if (instrument === 'rectangle' && rectDrawing) {
-        const rectElem = canvas.getBoundingClientRect();
-        rectEnd = {
-            x: Math.floor((e.clientX - rectElem.left) / cellSize),
-            y: Math.floor((e.clientY - rectElem.top) / cellSize)
+    } else if (instrument === 'rectangle' && isDrawingRectangle) {
+        rectangleEnd = {
+            x: Math.floor((e.clientX - rect.left) / cellSize),
+            y: Math.floor((e.clientY - rect.top) / cellSize)
         };
-        updateGridAppearance(); // Обновляем только сетку
-        drawRectOverlay();
-    }
-    else if (!selectionMode) {
+        // Превью прямоугольника с выводом размера
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+        let startX = Math.min(rectangleStart.x, rectangleEnd.x) * cellSize;
+        let startY = Math.min(rectangleStart.y, rectangleEnd.y) * cellSize;
+        let width = (Math.abs(rectangleEnd.x - rectangleStart.x) + 1) * cellSize;
+        let height = (Math.abs(rectangleEnd.y - rectangleStart.y) + 1) * cellSize;
+        overlayCtx.save();
+        overlayCtx.strokeStyle = color;
+        overlayCtx.lineWidth = gridThickness;
+        overlayCtx.setLineDash([5, 3]);
+        overlayCtx.strokeRect(startX, startY, width, height);
+        // Вывод размера в клетках (превью)
+        let cellsWidth = Math.abs(rectangleEnd.x - rectangleStart.x) + 1;
+        let cellsHeight = Math.abs(rectangleEnd.y - rectangleStart.y) + 1;
+        overlayCtx.font = "bold 14px sans-serif";
+        overlayCtx.fillStyle = "black";
+        let textY = startY > 20 ? startY - 5 : startY + height + 20;
+        overlayCtx.fillText(`Размер: ${cellsWidth} x ${cellsHeight}`, startX, textY);
+        overlayCtx.restore();
+    } else if (instrument !== 'rectangle') {
         draw(e);
     }
 });
-
-/* ...existing code... */
 
 // Функция проверки пересечения двух прямоугольников
 function rectsOverlap(r1, r2) {
@@ -278,195 +294,25 @@ function draw(e) {
     const startY = e.clientY - rectElem.top;
     const effectiveBrush = brushSize - 1;
     
-    ctx.save();
+    const currentLayer = getActiveLayer();
+    currentLayer.ctx.save();
     for (let dx = -effectiveBrush; dx <= effectiveBrush; dx++) {
         for (let dy = -effectiveBrush; dy <= effectiveBrush; dy++) {
             let { x, y } = getGridPosition(startX + dx * cellSize, startY + dy * cellSize);
             if (isCellProtected(x, y)) continue; // Пропускаем, если ячейка защищена
 
             if (erasing && gridLayer === "bottom") {
-                ctx.clearRect(x, y, cellSize, cellSize);
+                currentLayer.ctx.clearRect(x, y, cellSize, cellSize);
             } else {
-                ctx.fillStyle = erasing ? backgroundColor : color;
-                ctx.fillRect(x, y, cellSize, cellSize);
+                currentLayer.ctx.fillStyle = erasing ? backgroundColor : color;
+                currentLayer.ctx.fillRect(x, y, cellSize, cellSize);
             }
         }
     }
-    ctx.restore();
-    // savedOverlay не изменяется
+    currentLayer.ctx.restore();
+    redrawAllLayers();
 }
 
-/* ...existing code... */
-
-function drawSelectionOverlay() {
-    if (!selectionStart || !selectionEnd) return;
-    // Очищаем overlay‑холст, чтобы не оставались старые рисунки
-    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-    
-    let startX = Math.min(selectionStart.x, selectionEnd.x) * cellSize;
-    let startY = Math.min(selectionStart.y, selectionEnd.y) * cellSize;
-    let endX = (Math.max(selectionStart.x, selectionEnd.x) + 1) * cellSize;
-    let endY = (Math.max(selectionStart.y, selectionEnd.y) + 1) * cellSize;
-    
-    overlayCtx.save();
-    overlayCtx.strokeStyle = selectionColor;  // Используем выбранный цвет
-    overlayCtx.lineWidth = gridThickness; // Используем ту же толщину
-    overlayCtx.setLineDash([5, 3]);
-    overlayCtx.strokeRect(startX, startY, endX - startX, endY - startY);
-    
-    // Вычисляем размеры области в клетках
-    let cellsWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
-    let cellsHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
-    let text = `Область: ${cellsWidth} x ${cellsHeight}`;
-
-    // Настройка текста
-    overlayCtx.setLineDash([]);
-    overlayCtx.font = "bold 20px sans-serif";  // Увеличили шрифт
-    overlayCtx.fillStyle = selectionColor;      // Используем тот же цвет для текста
-    // Рисуем текст чуть выше выделенной области, если позволяет место
-    let textX = startX;
-    let textY = startY > 25 ? startY - 5 : endY + 25;
-    overlayCtx.fillText(text, textX, textY);
-    
-    overlayCtx.restore();
-}
-
-function saveSelection() {
-    if (!selectionStart || !selectionEnd) return;
-    
-    let startX = Math.min(selectionStart.x, selectionEnd.x) * cellSize;
-    let startY = Math.min(selectionStart.y, selectionEnd.y) * cellSize;
-    let endX = (Math.max(selectionStart.x, selectionEnd.x) + 1) * cellSize;
-    let endY = (Math.max(selectionStart.y, selectionEnd.y) + 1) * cellSize;
-    
-    // Сохраняем область в массив
-    savedSelections.push({
-        startX, startY,
-        width: endX - startX,
-        height: endY - startY,
-        color: selectionColor,
-        text: `Область: ${Math.abs(selectionEnd.x - selectionStart.x) + 1} x ${Math.abs(selectionEnd.y - selectionStart.y) + 1}`
-    });
-
-    // Очищаем и перерисовываем все сохранённые области
-    redrawSavedSelections();
-    
-    // Сброс режима выделения
-    selectionMode = false;
-    selectionStart = null;
-    selectionStart = null;
-    selectionEnd = null;
-    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-}
-
-function drawSavedSelection(selection) {
-    savedOverlayCtx.save();
-    savedOverlayCtx.strokeStyle = selection.color;
-    savedOverlayCtx.lineWidth = gridThickness * 2;
-    savedOverlayCtx.setLineDash([]);
-    savedOverlayCtx.strokeRect(selection.startX, selection.startY, selection.width, selection.height);
-
-    savedOverlayCtx.font = "bold 20px sans-serif";
-    savedOverlayCtx.fillStyle = selection.color;
-    let textY = selection.startY > 25 ? selection.startY - 5 : selection.startY + selection.height + 25;
-    savedOverlayCtx.fillText(selection.text, selection.startX, textY);
-    savedOverlayCtx.restore();
-}
-
-function redrawSavedSelections() {
-    // Очищаем savedOverlay перед перерисовкой
-    savedOverlayCtx.clearRect(0, 0, savedOverlay.width, savedOverlay.height);
-    savedSelections.forEach(selection => drawSavedSelection(selection));
-}
-
-function deleteSelectionMode() {
-    deleteSelectionModeActive = true;
-    document.getElementById('selectionInfo').innerText = "Выберите область для удаления";
-}
-
-canvas.addEventListener('click', (e) => {
-    if (!deleteSelectionModeActive) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Ищем область под кликом
-    const index = savedSelections.findIndex(selection => 
-        x >= selection.startX && x <= selection.startX + selection.width &&
-        y >= selection.startY && y <= selection.startY + selection.height
-    );
-    
-    if (index !== -1) {
-        savedSelections.splice(index, 1);
-        // Перерисовываем все сохранённые области без очистки основного canvas
-        redrawSavedSelections();
-        document.getElementById('selectionInfo').innerText = "Область удалена";
-        deleteSelectionModeActive = false;
-    }
-});
-
-function saveSelection() {
-    if (!selectionStart || !selectionEnd) return;
-    // Вычисляем координаты выделенной области
-    let startX = Math.min(selectionStart.x, selectionEnd.x) * cellSize;
-    let startY = Math.min(selectionStart.y, selectionEnd.y) * cellSize;
-    let endX = (Math.max(selectionStart.x, selectionEnd.x) + 1) * cellSize;
-    let endY = (Math.max(selectionStart.y, selectionEnd.y) + 1) * cellSize;
-    
-    // Рисуем постоянную рамку выделения на основном canvas с большей толщиной
-    ctx.save();
-    ctx.strokeStyle = selectionColor;
-    // Увеличиваем толщину рамки, например, в 2 раза от gridThickness или фиксированное значение
-    ctx.lineWidth = gridThickness * 2; 
-    ctx.setLineDash([]); // убираем пунктир
-    ctx.strokeRect(startX, startY, endX - startX, endY - startY);
-    
-    // Вычисляем параметры выделенной области
-    let cellsWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
-    let cellsHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
-    let text = `Область: ${cellsWidth} x ${cellsHeight}`;
-    // Отображаем текст с более крупным и жирным шрифтом
-    ctx.font = "bold 20px sans-serif";
-    ctx.fillStyle = selectionColor;
-    // Текст рисуем чуть выше рамки, если позволяет место
-    let textY = startY > 25 ? startY - 5 : endY + 25;
-    ctx.fillText(text, startX, textY);
-    ctx.restore();
-    
-    console.log("Сохранённая выделенная область:", {startX, startY, width: endX - startX, height: endY - endY});
-    // Сброс режима выделения
-    selectionMode = false;
-    selectionStart = null;
-    selectionEnd = null;
-    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-}
-
-/* Изменяем функцию drawRectOverlay для показа размера прямоугольника */
-function drawRectOverlay() {
-    if (!rectStart || !rectEnd) return;
-    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-    let startX = Math.min(rectStart.x, rectEnd.x) * cellSize;
-    let startY = Math.min(rectStart.y, rectEnd.y) * cellSize;
-    let endX = (Math.max(rectStart.x, rectEnd.x) + 1) * cellSize;
-    let endY = (Math.max(rectStart.y, rectEnd.y) + 1) * cellSize;
-    overlayCtx.save();
-    overlayCtx.strokeStyle = 'red';
-    overlayCtx.lineWidth = gridThickness; // Используем ту же толщину
-    overlayCtx.setLineDash([5, 3]);
-    overlayCtx.strokeRect(startX, startY, endX - startX, endY - startY);
-    // Вычисляем размеры в клетках и отображаем текст
-    let cellsWidth = Math.abs(rectEnd.x - rectStart.x) + 1;
-    let cellsHeight = Math.abs(rectEnd.y - rectStart.y) + 1;
-    let text = `Размер: ${cellsWidth} x ${cellsHeight}`;
-    overlayCtx.setLineDash([]);
-    overlayCtx.font = "16px sans-serif";
-    overlayCtx.fillStyle = "red";
-    let textX = startX;
-    let textY = startY > 20 ? startY - 5 : endY + 20;
-    overlayCtx.fillText(text, textX, textY);
-    overlayCtx.restore();
-}
 
 document.getElementById('colorPicker').addEventListener('input', (e) => {
     color = e.target.value;
@@ -580,10 +426,10 @@ function resizeCanvas() {
     updateGridDimensions(); // Это может стереть кисточку (из-за смены размеров)
 }
 
-function activateSelectionMode() {
-    selectionMode = true;
-    document.getElementById('selectionInfo').innerText = "Выберите область";
-}
+// function activateSelectionMode() {
+//     selectionMode = true;
+//     document.getElementById('selectionInfo').innerText = "Выберите область";
+// }
 
 // Добавляем функцию для сохранения/восстановления состояния canvas
 let drawingData = null; // Для хранения нарисованного
@@ -609,3 +455,969 @@ window.addEventListener('load', function() {
 
 drawGrid();
 changeTheme();
+
+let layers = [];
+let currentLayerIndex = 0;
+let layerCounter = 1;
+let folderCounter = 1;
+
+/* Добавляем базовый слой для рисования */
+createLayer("Базовый слой");
+selectLayer(0);
+
+// Единая функция getActiveLayer для работы с вложенными слоями.
+// Пусть currentLayerIndex всегда будет массивом пути, например: [0, "layers", 1]
+function getActiveLayer() {
+    if (!Array.isArray(currentLayerIndex)) {
+        return layers[currentLayerIndex];
+    }
+    let cur = layers;
+    for (let i = 0; i < currentLayerIndex.length; i++) {
+        const idx = currentLayerIndex[i];
+        if (idx === 'layers') continue;
+        if (!cur[idx]) {
+            console.error('Layer not found:', currentLayerIndex);
+            return layers[0];
+        }
+        cur = cur[idx];
+    }
+    // Если активный элемент – папка с дочерними слоями, выбираем последний из них
+    if (cur.isFolder && Array.isArray(cur.layers) && cur.layers.length > 0) {
+        return cur.layers[cur.layers.length - 1];
+    }
+    return cur;
+}
+
+function createLayer(name = `Слой ${layerCounter++}`) {
+    const layer = {
+        name,
+        canvas: document.createElement('canvas'),
+        ctx: null,
+        visible: true,
+        parent: null,
+        rectangles: [],
+        selections: []
+    };
+    layer.canvas.width = canvas.width;
+    layer.canvas.height = canvas.height;
+    layer.ctx = layer.canvas.getContext('2d');
+    // Добавляем новый слой в начало массива
+    layers.unshift(layer);
+    updateLayerList();
+    // Выбираем новый слой как текущий
+    selectLayer([0]);
+    return layer;
+}
+
+function createFolder(name = `Папка ${folderCounter++}`) {
+    const folder = {
+        name,
+        layers: [],
+        isFolder: true,
+        visible: true,
+        parent: null
+    };
+    // Добавляем папку в начало массива
+    layers.unshift(folder);
+    updateLayerList();
+    // Выбираем новый элемент как текущий
+    selectLayer([0]);
+    return folder;
+}
+
+// Изменяем updateLayerList для поддержки перетаскивания и вложенности:
+
+function updateLayerList() {
+    const layerList = document.getElementById('layerList');
+    layerList.innerHTML = '';
+    layers.forEach((item, index) => {
+        if (item.isFolder) {
+            if (!item.folderColor) {
+                const colors = ['#7f8c8d', '#95a5a6', '#bdc3c7'];
+                item.folderColor = colors[index % colors.length];
+            }
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'folder-item';
+            folderDiv.style.backgroundColor = item.folderColor;
+            folderDiv.draggable = true;
+            folderDiv.ondragstart = (e) => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({from: 'global', index}));
+                folderDiv.classList.add('dragging');
+            };
+            folderDiv.ondragover = (e) => {
+                e.preventDefault();
+                folderDiv.classList.add('drag-over');
+            };
+            folderDiv.ondragleave = (e) => {
+                folderDiv.classList.remove('drag-over');
+            };
+            folderDiv.ondrop = (e) => {
+                e.preventDefault();
+                folderDiv.classList.remove('drag-over');
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                // Если бросили элемент на папку – перемещаем его в вложенные
+                if(data.from === 'global') {
+                    const movingItem = layers.splice(data.index, 1)[0];
+                    item.layers = item.layers || [];
+                    item.layers.unshift(movingItem);
+                }
+                else if(data.from === 'folder') {
+                    // из другой папки
+                    const sourceFolder = data.folder;
+                    const movingItem = sourceFolder.layers.splice(data.index, 1)[0];
+                    item.layers = item.layers || [];
+                    item.layers.unshift(movingItem);
+                }
+                updateLayerList();
+            };
+            // Кнопка сворачивания/разворачивания
+            const toggleBtn = document.createElement('span');
+            toggleBtn.className = 'toggle-btn';
+            toggleBtn.style.cursor = 'pointer';
+            toggleBtn.innerText = item.collapsed ? '► ' : '▼ ';
+            toggleBtn.onclick = (e) => {
+                e.stopPropagation();
+                item.collapsed = !item.collapsed;
+                updateLayerList();
+            };
+            folderDiv.appendChild(toggleBtn);
+            // Название папки (переименование по dblclick)
+            const nameSpan = document.createElement('span');
+            nameSpan.innerText = item.name;
+            nameSpan.ondblclick = () => {
+                const newName = prompt("Введите новое имя для папки:", item.name);
+                if(newName) {
+                    item.name = newName;
+                    updateLayerList();
+                }
+            };
+            folderDiv.appendChild(nameSpan);
+            // Новая кнопка удаления в правом углу (используем спрайт)
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.style.float = 'right';
+            delBtn.innerHTML = '×'; // Используем символ Unicode вместо спрайта
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteLayer(index);
+            };
+            folderDiv.appendChild(delBtn);
+            layerList.appendChild(folderDiv);
+            if (!item.collapsed) {
+                const addContainer = document.createElement('div');
+                addContainer.className = 'folder-children';
+                // Добавляем обработчики для поддержки drop в "пустую" область папки
+                addContainer.ondragover = (e) => {
+                    e.preventDefault();
+                    setDropIndicator(addContainer, true);
+                };
+                addContainer.ondragleave = () => {
+                    setDropIndicator(addContainer, false);
+                };
+                addContainer.ondrop = (e) => {
+                    e.preventDefault();
+                    setDropIndicator(addContainer, false);
+                    const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    const sourceLayer = findLayerByPath(dragData.path);
+                    // Удаляем слой из исходного места
+                    deleteLayer(dragData.path);
+                    item.layers = item.layers || [];
+                    // Добавляем как последний вложенный элемент
+                    item.layers.push(sourceLayer);
+                    updateLayerList();
+                    redrawAllLayers();
+                };
+                // Рекурсивно отображаем вложенные элементы:
+                if(item.layers && item.layers.length > 0) {
+                    item.layers.forEach((child, childIndex) => {
+                        let childDiv = document.createElement('div');
+                        childDiv.draggable = true;
+                        if(child.isFolder) {
+                            childDiv.className = 'folder-item';
+                        } else {
+                            childDiv.className = 'layer-item';
+                            childDiv.style.backgroundColor = '#555';
+                        }
+                        childDiv.style.marginLeft = '20px';
+                        childDiv.innerText = child.name;
+                        // Обработчики drag для вложенных элементов:
+                        childDiv.ondragstart = (e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.setData('text/plain', JSON.stringify({from: 'folder', folder: item, index: childIndex}));
+                            childDiv.classList.add('dragging');
+                        };
+                        childDiv.ondragover = (e) => {
+                            e.preventDefault();
+                            childDiv.classList.add('drag-over');
+                        };
+                        childDiv.ondragleave = (e) => {
+                            childDiv.classList.remove('drag-over');
+                        };
+                        childDiv.ondrop = (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            childDiv.classList.remove('drag-over');
+                            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                            if(data.from === 'folder') {
+                                const sourceFolder = data.folder;
+                                const movingItem = sourceFolder.layers.splice(data.index, 1)[0];
+                                // если перетаскиваем на папку, добавить как вложенный
+                                if(child.isFolder){
+                                    child.layers = child.layers || [];
+                                    child.layers.unshift(movingItem);
+                                } else {
+                                    // если перетаскиваем поверх слоя, меняем порядок внутри текущей папки
+                                    item.layers.splice(childIndex, 0, movingItem);
+                                }
+                            }
+                            updateLayerList();
+                        };
+                        // Переименование по dblclick
+                        childDiv.ondblclick = () => {
+                            const newName = prompt("Введите новое имя:", child.name);
+                            if(newName){
+                                child.name = newName;
+                                updateLayerList();
+                            }
+                        };
+                        // Кнопка удаления для вложенного элемента
+                        const childDelBtn = document.createElement('button');
+                        childDelBtn.className = 'delete-btn';
+                        childDelBtn.innerHTML = '×'; // Используем символ Unicode вместо спрайта
+                        childDelBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            item.layers.splice(childIndex, 1);
+                            updateLayerList();
+                        };
+                        childDiv.appendChild(childDelBtn);
+                        addContainer.appendChild(childDiv);
+                    });
+                }
+                layerList.appendChild(addContainer);
+            }
+        } else {
+            // Обычный слой
+            const layerDiv = document.createElement('div');
+            layerDiv.className = 'layer-item';
+            layerDiv.draggable = true;
+            layerDiv.innerText = item.name;
+            layerDiv.onclick = () => selectLayer([index]);
+            layerDiv.ondblclick = () => {
+                const newName = prompt("Введите новое имя для слоя:", item.name);
+                if(newName) {
+                    item.name = newName;
+                    updateLayerList();
+                }
+            };
+            layerDiv.ondragstart = (e) => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({from: 'global', index}));
+                layerDiv.classList.add('dragging');
+            };
+            layerDiv.ondragover = (e) => {
+                e.preventDefault();
+                layerDiv.classList.add('drag-over');
+            };
+            layerDiv.ondragleave = () => {
+                layerDiv.classList.remove('drag-over');
+            };
+            layerDiv.ondrop = (e) => {
+                e.preventDefault();
+                layerDiv.classList.remove('drag-over');
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                if(data.from === 'global') {
+                    const movingItem = layers.splice(data.index, 1)[0];
+                    layers.splice(index, 0, movingItem);
+                }
+                updateLayerList();
+                redrawAllLayers();
+            };
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.innerHTML = '×'; // Используем символ Unicode вместо спрайта
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteLayer(index);
+            };
+            layerDiv.appendChild(delBtn);
+            layerList.appendChild(layerDiv);
+        }
+    });
+}
+
+function deleteLayer(index, parentFolder) {
+    if (parentFolder) {
+        parentFolder.layers.splice(index, 1);
+    } else {
+        layers.splice(index, 1);
+    }
+    updateLayerList();
+    redrawAllLayers();
+}
+
+// Обновляем функцию selectNestedLayer
+function selectNestedLayer(folder, layer) {
+    // Находим индекс слоя в общем массиве
+    const globalIndex = layers.indexOf(folder);
+    // Устанавливаем текущий слой
+    if (!layer.isFolder) {
+        currentLayerIndex = globalIndex;
+        selectedNestedLayer = layer;
+    }
+    updateLayerList();
+}
+
+// Добавляем функцию для поиска слоя по пути
+function findLayerByPath(path) {
+    let current = layers;
+    let layer = null;
+    
+    for (let i = 0; i < path.length; i++) {
+        const index = path[i];
+        if (i === path.length - 1) {
+            layer = current[index];
+        } else {
+            current = current[index].layers;
+        }
+    }
+    return layer;
+}
+
+// Обновляем функцию selectNestedLayer
+function selectNestedLayer(folder, layer, path) {
+    if (!layer.isFolder) {
+        selectedNestedLayer = layer;
+        currentLayerIndex = path;
+    }
+    updateLayerList();
+}
+
+// Обновляем функцию redrawAllLayers для поддержки вложенных слоев
+function redrawAllLayers() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    function drawLayer(layer) {
+        if (!layer.visible) return;
+        
+        if (layer.isFolder) {
+            layer.layers.forEach(drawLayer);
+        } else {
+            ctx.drawImage(layer.canvas, 0, 0);
+            layer.selections.forEach(sel => drawSavedSelection(sel));
+        }
+    }
+    
+    // Рисуем все слои
+    layers.forEach(drawLayer);
+}
+
+// Обновляем функцию updateLayerList
+function updateLayerList() {
+    const layerList = document.getElementById('layerList');
+    layerList.innerHTML = '';
+    
+    function createLayerElement(item, path) {
+        const div = document.createElement('div');
+        div.draggable = true;
+        
+        if (item.isFolder) {
+            div.className = 'folder-item';
+            if (!item.folderColor) {
+                const colors = ['#7f8c8d', '#95a5a6', '#bdc3c7'];
+                item.folderColor = colors[path[0] % colors.length];
+            }
+            div.style.backgroundColor = item.folderColor;
+            
+            // Кнопка сворачивания
+            const toggleBtn = document.createElement('span');
+            toggleBtn.className = 'toggle-btn';
+            toggleBtn.innerText = item.collapsed ? '► ' : '▼ ';
+            toggleBtn.onclick = (e) => {
+                e.stopPropagation();
+                item.collapsed = !item.collapsed;
+                updateLayerList();
+            };
+            div.appendChild(toggleBtn);
+            
+            // Имя папки
+            const nameSpan = document.createElement('span');
+            nameSpan.innerText = item.name;
+            div.appendChild(nameSpan);
+            
+            // Кнопка удаления
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.innerHTML = '×';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteLayer(path);
+                updateLayerList();
+            };
+            div.appendChild(delBtn);
+            
+            // Контейнер для вложенных элементов
+            if (!item.collapsed) {
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'folder-children';
+                childrenContainer.style.marginLeft = '20px';
+                
+                item.layers.forEach((child, index) => {
+                    const childPath = [...path, 'layers', index];
+                    const childElement = createLayerElement(child, childPath);
+                    childrenContainer.appendChild(childElement);
+                });
+                
+                div.appendChild(childrenContainer);
+            }
+        } else {
+            div.className = 'layer-item';
+            div.innerText = item.name;
+            
+            // Выделение текущего слоя
+            if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
+                div.classList.add('selected');
+            }
+            
+            // Обработчик клика для выбора слоя
+            div.onclick = () => {
+                currentLayerIndex = path;
+                updateLayerList();
+                redrawAllLayers();
+            };
+            
+            // Кнопка удаления
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.innerHTML = '×';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteLayer(path);
+                updateLayerList();
+            };
+            div.appendChild(delBtn);
+        }
+        
+        // Обработчики перетаскивания
+        div.ondragstart = (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ path }));
+            div.classList.add('dragging');
+        };
+        
+        div.ondragover = (e) => {
+            e.preventDefault();
+            div.classList.add('drag-over');
+        };
+        
+        div.ondragleave = () => {
+            div.classList.remove('drag-over');
+        };
+        
+        div.ondrop = (e) => {
+            e.preventDefault();
+            div.classList.remove('drag-over');
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const sourceLayer = findLayerByPath(dragData.path);
+            
+            // Удаляем слой из исходного места
+            deleteLayer(dragData.path);
+            
+            // Добавляем слой в новое место
+            if (item.isFolder) {
+                item.layers = item.layers || [];
+                item.layers.unshift(sourceLayer);
+            } else {
+                const parentPath = path.slice(0, -1);
+                const parent = findLayerByPath(parentPath);
+                const index = path[path.length - 1];
+                if (Array.isArray(parent)) {
+                    parent.splice(index, 0, sourceLayer);
+                } else if (parent.layers) {
+                    parent.layers.splice(index, 0, sourceLayer);
+                }
+            }
+            
+            updateLayerList();
+            redrawAllLayers();
+        };
+        
+        return div;
+    }
+    
+    // Создаем элементы для всех слоев
+    layers.forEach((item, index) => {
+        layerList.appendChild(createLayerElement(item, [index]));
+    });
+}
+
+// Обновляем функцию deleteLayer
+function deleteLayer(path) {
+    let current = layers;
+    let parent = null;
+    let index = null;
+    
+    // Находим родительский контейнер и индекс для удаления
+    for (let i = 0; i < path.length; i++) {
+        if (path[i] === 'layers') {
+            if (i > 0 && current[path[i-1]]) {
+                parent = current;
+                current = current[path[i-1]].layers;
+            }
+            continue;
+        }
+
+        index = path[i];
+
+        if (i === path.length - 1) {
+            break;
+        }
+
+        current = current[path[i]];
+    }
+    
+    if (parent && parent.layers) {
+        parent.layers.splice(index, 1);
+    } else {
+        layers.splice(index, 1);
+    }
+    
+    // Если удалили текущий слой, сбрасываем выбор
+    if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
+        currentLayerIndex = [0];
+        selectedNestedLayer = layers[0];
+    }
+}
+
+function moveLayer(fromIndex, toIndex) {
+    const [movedLayer] = layers.splice(fromIndex, 1);
+    layers.splice(toIndex, 0, movedLayer);
+    updateLayerList();
+    redrawAllLayers();
+}
+
+function selectLayer(path) {
+    currentLayerIndex = path;
+    updateLayerList();
+    redrawAllLayers();
+}
+
+function redrawAllLayers() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    function drawLayerContent(items) {
+        // Проходим по массиву в обратном порядке для правильного наложения
+        for (let i = items.length - 1; i >= 0; i--) {
+            const layer = items[i];
+            if (!layer.visible) continue;
+            
+            if (layer.isFolder) {
+                // Если это папка - рисуем только её содержимое
+                if (layer.layers && layer.layers.length > 0) {
+                    drawLayerContent(layer.layers);
+                }
+            } else {
+                // Если это слой - рисуем его содержимое
+                ctx.drawImage(layer.canvas, 0, 0);
+                if (layer.selections) {
+                    layer.selections.forEach(sel => drawSavedSelection(sel));
+                }
+            }
+        }
+    }
+    
+    drawLayerContent(layers);
+}
+
+document.getElementById('addLayerButton').addEventListener('click', () => {
+    createLayer();
+});
+
+document.getElementById('addFolderButton').addEventListener('click', () => {
+    createFolder();
+});
+
+
+// Добавляем вспомогательную функцию для установки индикатора места вставки
+function setDropIndicator(target, show) {
+    if (show) {
+        target.style.borderTop = "2px solid #f1c40f";
+    } else {
+        target.style.borderTop = "";
+    }
+}
+
+// Обновлённая функция создания элемента слоя (вложенная или обычная)
+function createLayerElement(item, path) {
+    const div = document.createElement('div');
+    div.draggable = true;
+    
+    if (item.isFolder) {
+        div.className = 'folder-item';
+        if (!item.folderColor) {
+            const colors = ['#7f8c8d', '#95a5a6', '#bdc3c7'];
+            item.folderColor = colors[path[0] % colors.length];
+        }
+        div.style.backgroundColor = item.folderColor;
+        
+        /* ...код кнопки сворачивания, переименования и удаления... */
+        const toggleBtn = document.createElement('span');
+        toggleBtn.className = 'toggle-btn';
+        toggleBtn.innerText = item.collapsed ? '► ' : '▼ ';
+        toggleBtn.onclick = (e) => { e.stopPropagation(); item.collapsed = !item.collapsed; updateLayerList(); };
+        div.appendChild(toggleBtn);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.innerText = item.name;
+        div.appendChild(nameSpan);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-btn';
+        delBtn.innerHTML = '×';
+        delBtn.onclick = (e) => { e.stopPropagation(); deleteLayer(path); updateLayerList(); };
+        div.appendChild(delBtn);
+        
+        // Обработчики перетаскивания для папки
+        div.ondragstart = (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ path }));
+            div.classList.add('dragging');
+        };
+        div.ondragover = (e) => {
+            e.preventDefault();
+            // Показываем индикатор вставки в верхней части элемента, если курсор в верхней половине
+            const rect = div.getBoundingClientRect();
+            setDropIndicator(div, (e.clientY - rect.top) < rect.height/2);
+        };
+        div.ondragleave = () => {
+            setDropIndicator(div, false);
+        };
+        div.ondrop = (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Предотвращаем всплытие
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const sourceLayer = findLayerByPath(dragData.path);
+            
+            if (!sourceLayer) return;
+            
+            // Проверяем верхнюю/нижнюю половину папки
+            const rect = div.getBoundingClientRect();
+            const isTopHalf = (e.clientY - rect.top) < rect.height/2;
+            
+            if (isTopHalf) {
+                // Вставляем до папки
+                const idx = layers.indexOf(item);
+                deleteLayer(dragData.path);
+                layers.splice(idx, 0, sourceLayer);
+            } else {
+                // Вставляем в папку
+                deleteLayer(dragData.path);
+                item.layers = item.layers || [];
+                item.layers.unshift(sourceLayer);
+            }
+            
+            updateLayerList();
+            redrawAllLayers();
+        };
+        
+        // Если не свернута, создаём контейнер вложенных элементов
+        if (!item.collapsed) {
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'folder-children';
+            childrenContainer.style.marginLeft = '20px';
+            // Добавляем обработчики для поддержки drop в "пустую" область папки
+            childrenContainer.ondragover = (e) => {
+                e.preventDefault();
+                setDropIndicator(childrenContainer, true);
+            };
+            childrenContainer.ondragleave = () => {
+                setDropIndicator(childrenContainer, false);
+            };
+            childrenContainer.ondrop = (e) => {
+                e.preventDefault();
+                setDropIndicator(childrenContainer, false);
+                const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const sourceLayer = findLayerByPath(dragData.path);
+                // Удаляем слой из исходного места
+                deleteLayer(dragData.path);
+                item.layers = item.layers || [];
+                // Добавляем как последний вложенный элемент
+                item.layers.push(sourceLayer);
+                updateLayerList();
+                redrawAllLayers();
+            };
+            item.layers.forEach((child, idx) => {
+                const childPath = [...path, 'layers', idx];
+                childrenContainer.appendChild(createLayerElement(child, childPath));
+            });
+            div.appendChild(childrenContainer);
+        }
+    } else { // Обычный слой
+        div.className = 'layer-item';
+        div.innerText = item.name;
+        if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
+            div.classList.add('selected');
+        }
+        div.onclick = () => { selectLayer(path); selectedNestedLayer = item; updateLayerList(); };
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-btn';
+        delBtn.innerHTML = '×';
+        delBtn.onclick = (e) => { e.stopPropagation(); deleteLayer(path); updateLayerList(); };
+        div.appendChild(delBtn);
+        
+        div.ondragstart = (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ path }));
+            div.classList.add('dragging');
+        };
+        div.ondragover = (e) => {
+            e.preventDefault();
+            setDropIndicator(div, true);
+        };
+        div.ondragleave = () => {
+            setDropIndicator(div, false);
+        };
+        div.ondrop = (e) => {
+            e.preventDefault();
+            setDropIndicator(div, false);
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const sourceLayer = findLayerByPath(dragData.path);
+            deleteLayer(dragData.path);
+            // Вставляем перед выбранным слоем
+            const parentPath = path.slice(0, -1);
+            const parent = parentPath.length ? findLayerByPath(parentPath) : layers;
+            const index = path[path.length - 1];
+            if (Array.isArray(parent)) {
+                parent.splice(index, 0, sourceLayer);
+            } else {
+                parent.layers.splice(index, 0, sourceLayer);
+            }
+            updateLayerList();
+            redrawAllLayers();
+        };
+    }
+    return div;
+}
+
+// Переписываем updateLayerList для работы через createLayerElement
+function updateLayerList() {
+    const layerList = document.getElementById('layerList');
+    layerList.innerHTML = '';
+    layers.forEach((item, idx) => {
+        layerList.appendChild(createLayerElement(item, [idx]));
+    });
+}
+
+// Обновлённая функция deleteLayer, получающая путь как массив
+function deleteLayer(path) {
+    let current = layers;
+    let parent = null;
+    for (let i = 0; i < path.length - 1; i++) {
+        if (path[i] === 'layers') {
+            continue;
+        }
+        parent = current;
+        current = current[path[i]].layers;
+    }
+    const idx = path[path.length - 1];
+    if (Array.isArray(current)) {
+        current.splice(idx, 1);
+    }
+    // Если удалили текущий слой, сбрасываем выбор
+    if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
+        currentLayerIndex = [0];
+        selectedNestedLayer = layers[0];
+    }
+}
+
+/* ...existing code... */
+
+// Обновляем обработчик ondrop для folder-item:
+folderDiv.ondrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // Предотвращаем всплытие
+    const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const sourceLayer = findLayerByPath(dragData.path);
+    
+    if (!sourceLayer) return;
+    
+    // Проверяем верхнюю/нижнюю половину папки
+    const rect = folderDiv.getBoundingClientRect();
+    const isTopHalf = (e.clientY - rect.top) < rect.height/2;
+    
+    if (isTopHalf) {
+        // Вставляем до папки
+        const idx = layers.indexOf(item);
+        deleteLayer(dragData.path);
+        layers.splice(idx, 0, sourceLayer);
+    } else {
+        // Вставляем в папку
+        deleteLayer(dragData.path);
+        item.layers = item.layers || [];
+        item.layers.unshift(sourceLayer);
+    }
+    
+    updateLayerList();
+    redrawAllLayers();
+};
+
+// Исправляем функцию findLayerByPath
+function findLayerByPath(path) {
+    let current = layers;
+    
+    for (let i = 0; i < path.length; i++) {
+        if (!current) return null;
+        
+        if (path[i] === 'layers') {
+            if (i > 0 && current[path[i-1]]) {
+                current = current[path[i-1]].layers;
+            }
+            continue;
+        }
+        
+        if (current[path[i]] === undefined) return null;
+        
+        if (i === path.length - 1) {
+            return current[path[i]];
+        }
+        
+        current = current[path[i]];
+    }
+    return null;
+}
+
+// Изменяем функцию deleteLayer
+function deleteLayer(path) {
+    let current = layers;
+    let parent = null;
+    let index = null;
+
+    // Находим родительский контейнер и индекс для удаления
+    for (let i = 0; i < path.length; i++) {
+        if (path[i] === 'layers') {
+            if (i > 0 && current[path[i-1]]) {
+                parent = current;
+                current = current[path[i-1]].layers;
+            }
+            continue;
+        }
+
+        index = path[i];
+
+        if (i === path.length - 1) {
+            break;
+        }
+
+        current = current[path[i]];
+    }
+
+    if (parent && parent.layers) {
+        parent.layers.splice(index, 1);
+    } else {
+        layers.splice(index, 1);
+    }
+
+    // Если удалили текущий слой, сбрасываем выбор
+    if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
+        currentLayerIndex = [0];
+        selectedNestedLayer = layers[0];
+    }
+}
+
+/* ...existing code... */
+
+// Исправленная функция deleteLayer:
+function deleteLayer(path) {
+    let arrayRef = layers;
+    let lastIndex;
+    for (let i = 0; i < path.length; i++) {
+        if (path[i] === 'layers') {
+            continue;
+        }
+        lastIndex = path[i];
+        if (i + 1 < path.length && path[i + 1] === 'layers') {
+            arrayRef = arrayRef[lastIndex].layers;
+            i++; // пропускаем 'layers'
+        }
+    }
+    arrayRef.splice(lastIndex, 1);
+
+    // Если удалён текущий слой, сбрасываем выбор
+    if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
+        currentLayerIndex = [0];
+        selectedNestedLayer = layers[0];
+    }
+}
+
+/* ...existing code... */
+
+// Обновляем функцию redrawAllLayers, чтобы папки не рисовались на холсте 
+function redrawAllLayers() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    function drawLayerContent(items) {
+        // Проходим по массиву в обратном порядке для правильного наложения
+        for (let i = items.length - 1; i >= 0; i--) {
+            const layer = items[i];
+            if (!layer.visible) continue;
+            
+            if (layer.isFolder) {
+                // Если это папка - рисуем только её содержимое
+                if (layer.layers && layer.layers.length > 0) {
+                    drawLayerContent(layer.layers);
+                }
+            } else {
+                // Если это слой - рисуем его содержимое
+                ctx.drawImage(layer.canvas, 0, 0);
+                if (layer.selections) {
+                    layer.selections.forEach(sel => drawSavedSelection(sel));
+                }
+            }
+        }
+    }
+    
+    drawLayerContent(layers);
+}
+
+// Функция отрисовки выделения
+function drawSelectionOverlay() {
+    if (!selectionStart || !selectionEnd) return;
+    
+    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+    
+    const startX = Math.min(selectionStart.x, selectionEnd.x) * cellSize;
+    const startY = Math.min(selectionStart.y, selectionEnd.y) * cellSize;
+    const width = (Math.abs(selectionEnd.x - selectionStart.x) + 1) * cellSize;
+    const height = (Math.abs(selectionEnd.y - selectionStart.y) + 1) * cellSize;
+    
+    overlayCtx.save();
+    overlayCtx.strokeStyle = '#0066ff';
+    overlayCtx.lineWidth = 2;
+    overlayCtx.setLineDash([5, 3]);
+    overlayCtx.strokeRect(startX, startY, width, height);
+    
+    // Отображаем размеры выделения
+    const cellsWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
+    const cellsHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+    overlayCtx.font = '14px Arial';
+    overlayCtx.fillStyle = '#0066ff';
+    overlayCtx.fillText(`${cellsWidth} x ${cellsHeight}`, startX, startY - 5);
+    
+    overlayCtx.restore();
+}
+
+// ...existing code...
+
+// Добавляем функцию saveSelection (заменяет закомментированные версии)
+function saveSelection() {
+    if (!selectedArea) return;
+    const currentLayer = getActiveLayer();
+    currentLayer.selections = currentLayer.selections || [];
+    // Сохраняем выделенную область с учетом выбранного цвета
+    currentLayer.selections.push({ 
+        startX: selectedArea.startX * cellSize,
+        startY: selectedArea.startY * cellSize,
+        width: (selectedArea.endX - selectedArea.startX + 1) * cellSize,
+        height: (selectedArea.endY - selectedArea.startY + 1) * cellSize,
+        color: selectionColor
+    });
+    // Очистка выделения и перерисовка
+    clearSelection();
+    redrawAllLayers();
+}
+// ...existing code...

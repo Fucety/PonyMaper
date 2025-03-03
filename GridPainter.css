@@ -80,3 +80,95 @@ body {
     width: 60px; /* уменьшенная ширина */
     /* при необходимости можно добавить другие стили, например, height или font-size */
 }
+
+#layerControls {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 200px;
+    padding: 10px;
+    border: 1px solid #333;
+    border-radius: 5px;
+    background-color: #444;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    /* Новое: добавляем вертикальную компоновку и отступы */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+#layerControls button {
+    margin: 0;
+}
+/* Добавляем отступ между кнопками и списком слоев */
+#layerList {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.layer-item {
+    padding: 5px;
+    cursor: pointer;
+    background-color: #555;
+    border: 1px solid #666;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    color: #fff;
+}
+
+.layer-item.selected {
+    background-color: #777;
+    border-color: #888;
+}
+
+#addLayerButton, #addFolderButton {
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+#addFolderButton {
+    background-color: #0275d8;
+}
+#addLayerButton:hover, #addFolderButton:hover {
+    opacity: 0.8;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 16px;
+    cursor: pointer;
+    float: right;
+    padding: 0 5px;
+    line-height: 1;
+    margin-left: 5px;
+}
+
+.delete-btn:hover {
+    color: #ff4444;
+}
+
+.folder-children .layer-item {
+    position: relative;
+    padding-right: 25px; /* Место для крестика */
+}
+
+.drag-over {
+    outline: 2px dashed #f1c40f;
+}
+.dragging {
+    opacity: 0.5;
+}
+
+.drag-placeholder {
+    width: 100%;
+    background-color: #f1c40f;
+    margin: 2px 0;
+}
