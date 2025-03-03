@@ -771,6 +771,7 @@ function updateLayerList() {
                 if(newName) {
                     item.name = newName;
                     updateLayerList();
+                    redrawAllLayers();
                 }
             };
             layerDiv.ondragstart = (e) => {
@@ -1048,6 +1049,7 @@ function deleteLayer(path) {
         currentLayerIndex = [0];
         selectedNestedLayer = layers[0];
     }
+    redrawAllLayers();
 }
 
 function moveLayer(fromIndex, toIndex) {
@@ -1227,6 +1229,14 @@ function createLayerElement(item, path) {
             div.classList.add('selected');
         }
         div.onclick = () => { selectLayer(path); selectedNestedLayer = item; updateLayerList(); };
+        div.ondblclick = () => {
+            const newName = prompt("Введите новое имя для слоя:", item.name);
+            if(newName && newName.trim()){
+                item.name = newName.trim();
+                updateLayerList();
+                redrawAllLayers();
+            }
+        };
         const delBtn = document.createElement('button');
         delBtn.className = 'delete-btn';
         delBtn.innerHTML = '×';
@@ -1296,6 +1306,7 @@ function deleteLayer(path) {
         currentLayerIndex = [0];
         selectedNestedLayer = layers[0];
     }
+    redrawAllLayers();
 }
 
 /* ...existing code... */
@@ -1390,6 +1401,7 @@ function deleteLayer(path) {
         currentLayerIndex = [0];
         selectedNestedLayer = layers[0];
     }
+    redrawAllLayers();
 }
 
 /* ...existing code... */
@@ -1415,6 +1427,7 @@ function deleteLayer(path) {
         currentLayerIndex = [0];
         selectedNestedLayer = layers[0];
     }
+    redrawAllLayers();
 }
 
 /* ...existing code... */
