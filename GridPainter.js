@@ -1772,6 +1772,7 @@ function saveSelection() {
     
     document.getElementById('selectionInfo').innerText = 
         `Сохранено: ${regionName} (${cellsWidth} x ${cellsHeight})`;
+    saveProgressToCache(); // Добавлено: сохраняем выделение в localStorage
 }
 
 // Обновляем функцию redrawAllLayers
