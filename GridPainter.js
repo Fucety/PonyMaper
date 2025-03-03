@@ -649,21 +649,26 @@ function createLayer(name = `Слой ${layerCounter++}`) {
     return layer;
 }
 
-function createFolder(name = `Папка ${folderCounter++}`) {
-    const folder = {
-        name,
-        layers: [],
-        isFolder: true,
-        visible: true,
-        parent: null
-    };
-    // Добавляем папку в начало массива
-    layers.unshift(folder);
-    updateLayerList();
-    // Выбираем новый элемент как текущий
-    selectLayer([0]);
-    return folder;
-}
+// Отключаем функционал создания папок
+// function createFolder(name = `Папка ${folderCounter++}`) {
+//     const folder = {
+//         name,
+//         layers: [],
+//         isFolder: true,
+//         visible: true,
+//         parent: null
+//     };
+//     // Добавляем папку в начало массива
+//     layers.unshift(folder);
+//     updateLayerList();
+//     // Выбираем новый элемент как текущий
+//     selectLayer([0]);
+//     return folder;
+// }
+
+// Удаляем обработчик кнопки создания папок
+document.getElementById('addFolderButton')?.removeEventListener('click', createFolder);
+// Также можно удалить или скрыть кнопку в HTML как сделано в GridPainter.html
 
 // Изменяем updateLayerList для поддержки перетаскивания и вложенности:
 
@@ -1181,10 +1186,8 @@ document.getElementById('addLayerButton').addEventListener('click', () => {
     createLayer();
 });
 
-document.getElementById('addFolderButton').addEventListener('click', () => {
-    createFolder();
-});
-
+// Удаляем обработчик кнопки создания папок
+document.getElementById('addFolderButton')?.removeEventListener('click', createFolder);
 
 // Добавляем вспомогательную функцию для установки индикатора места вставки
 function setDropIndicator(target, show) {
