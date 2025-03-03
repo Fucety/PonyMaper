@@ -67,6 +67,12 @@
             <input type="color" id="selectionColorPicker" value="#0000ff">
             <span id="selectionInfo"></span>
         </div>
+        <div class="control-group">
+            <strong>Проект:</strong>
+            <button onclick="exportProject()">Экспорт проекта</button>
+            <button onclick="document.getElementById('importFile').click()">Импорт проекта</button>
+            <input type="file" id="importFile" accept="application/json" onchange="importProject(this.files)" style="display:none">
+        </div>
     </div>
     <div id="canvasContainer">
         <canvas id="grid"></canvas>

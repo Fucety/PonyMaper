@@ -1911,3 +1911,47 @@ function loadProgressFromCache() {
         redrawAllLayers();
     }
 }
+
+// ...existing code...
+
+// Функция экспорта проекта
+function exportProject() {
+    const projectData = {
+        progress: localStorage.getItem('gridPainterProgress'),
+        layers: localStorage.getItem('gridPainterLayers'),
+        settings: localStorage.getItem('gridPainterSettings')
+    };
+    const json = JSON.stringify(projectData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'project.json';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+// Функция импорта проекта
+function importProject(files) {
+    if (!files || !files[0]) return;
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            // Сохраняем данные в localStorage
+            localStorage.setItem('gridPainterProgress', data.progress || '');
+            localStorage.setItem('gridPainterLayers', data.layers || '');
+            localStorage.setItem('gridPainterSettings', data.settings || '');
+            // Обновляем состояние проекта
+            loadProgressFromCache();
+            redrawAllLayers();
+            alert('Проект успешно импортирован.');
+        } catch (err) {
+            alert('Ошибка импорта проекта. Проверьте формат файла.');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ...existing code...
