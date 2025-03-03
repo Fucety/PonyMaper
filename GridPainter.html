@@ -12,12 +12,11 @@
     <div id="controls">
         <div class="control-group">
             <strong>Рисование:</strong>
-            <!-- Добавлены кнопки выбора инструмента -->
-            <button onclick="setInstrument('brush')">Кисточка</button>
-            <button onclick="setInstrument('rectangle')">Прямоугольник</button>
-            <!-- Новая кнопка для инструмента "Линия" -->
-            <button onclick="setInstrument('line')">Линия</button>
-            <button onclick="setInstrument('eraser')">Ластик</button>
+            <!-- Назначены id для кнопок и добавлен вызов updateToolHighlight -->
+            <button id="toolBrush" onclick="setInstrument('brush'); updateToolHighlight()">Кисточка</button>
+            <button id="toolRectangle" onclick="setInstrument('rectangle'); updateToolHighlight()">Прямоугольник</button>
+            <button id="toolLine" onclick="setInstrument('line'); updateToolHighlight()">Линия</button>
+            <button id="toolEraser" onclick="setInstrument('eraser'); updateToolHighlight()">Ластик</button>
             <!-- Можно скрыть или убрать существующий выбор цвета/размера для кисточки, если не нужен -->
             <label for="colorPicker">Цвет:</label>
             <input type="color" id="colorPicker" value="#000000">
@@ -87,5 +86,6 @@
         <div id="layerList"></div>
     </div>
     <script src="GridPainter.js"></script>
+    <script src="shortcuts.js"></script>
 </body>
 </html>

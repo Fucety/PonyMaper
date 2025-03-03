@@ -92,6 +92,23 @@ function setInstrument(inst) {
         lineStart = null;
         lineEnd = null;
     }
+    /* Добавляем обновление подсветки */
+    updateToolHighlight();
+}
+
+/* Новая функция для подсветки активного инструмента */
+function updateToolHighlight() {
+    const tools = ['brush', 'rectangle', 'line', 'eraser'];
+    tools.forEach(t => {
+        const btn = document.getElementById('tool' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) {
+            if (instrument === t) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
 }
 
 // Функция очистки выделения
@@ -199,6 +216,12 @@ function getGridPosition(x, y) {
 
 canvas.addEventListener('mousedown', (e) => {
     const rect = canvas.getBoundingClientRect();
+    // Сохраняем состояние активного слоя для всех действий, изменяющих рисунок
+    if (instrument !== 'selection') {
+        if (typeof pushUndoState === 'function') {
+            pushUndoState();
+        }
+    }
     if (instrument === 'selection') {
         if (!isSelectingActive) {
             // Первый клик - начинаем выделение
@@ -1625,7 +1648,7 @@ canvas.addEventListener('mouseup', (e) => {
                     startX: Math.min(selectionStart.x, selectionEnd.x),
                     startY: Math.min(selectionStart.y, selectionEnd.y),
                     endX: Math.max(selectionStart.x, selectionEnd.x),
-                    endY: Math.max(selectionEnd.y, selectionEnd.y)
+                    endY: Math.max(selectionStart.y, selectionEnd.y)
                 };
             }
         }

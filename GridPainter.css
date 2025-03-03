@@ -172,3 +172,29 @@ body {
     background-color: #f1c40f;
     margin: 2px 0;
 }
+
+.visibility-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 16px;
+    cursor: pointer;
+    float: right;
+    padding: 0 5px;
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+.visibility-btn:hover {
+    color: #ffffff;
+}
+
+.visibility-btn.hidden {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Подсветка активной кнопки инструмента */
+.control-group button.active {
+    background-color: #ff9800;
+    color: #fff;
+}
