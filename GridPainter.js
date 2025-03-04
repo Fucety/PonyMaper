@@ -343,14 +343,16 @@ canvas.addEventListener('mousemove', (e) => {
         let height = (Math.abs(rectangleEnd.y - rectangleStart.y) + 1) * cellSize;
         overlayCtx.save();
         overlayCtx.strokeStyle = color;
-        overlayCtx.lineWidth = gridThickness;
+        overlayCtx.lineWidth = gridThickness * 2; // Увеличиваем толщину линии
         overlayCtx.setLineDash([5, 3]);
         overlayCtx.strokeRect(startX, startY, width, height);
         // Вывод размера в клетках (превью)
         let cellsWidth = Math.abs(rectangleEnd.x - rectangleStart.x) + 1;
         let cellsHeight = Math.abs(rectangleEnd.y - rectangleStart.y) + 1;
         overlayCtx.font = "bold 14px sans-serif";
-        overlayCtx.fillStyle = "black";
+        overlayCtx.fillStyle = color; // Используем цвет инструмента
+        overlayCtx.shadowColor = 'rgba(255, 255, 255, 0.8)'; // Добавляем подсветку
+        overlayCtx.shadowBlur = 4;
         let textY = startY > 20 ? startY - 5 : startY + height + 20;
         overlayCtx.fillText(`Размер: ${cellsWidth} x ${cellsHeight}`, startX, textY);
         overlayCtx.restore();
@@ -359,7 +361,7 @@ canvas.addEventListener('mousemove', (e) => {
         overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
         overlayCtx.save();
         overlayCtx.strokeStyle = color;
-        overlayCtx.lineWidth = gridThickness;
+        overlayCtx.lineWidth = gridThickness * 2; // Увеличиваем толщину линии
         overlayCtx.setLineDash([5, 3]);
         overlayCtx.beginPath();
         overlayCtx.moveTo(lineStart.x, lineStart.y);
@@ -369,7 +371,9 @@ canvas.addEventListener('mousemove', (e) => {
         let cellsWidth = Math.abs(lineEnd.x - lineStart.x) / cellSize;
         let cellsHeight = Math.abs(lineEnd.y - lineStart.y) / cellSize;
         overlayCtx.font = "bold 14px sans-serif";
-        overlayCtx.fillStyle = "black";
+        overlayCtx.fillStyle = color; // Используем цвет инструмента
+        overlayCtx.shadowColor = 'rgba(255, 255, 255, 0.8)'; // Добавляем подсветку
+        overlayCtx.shadowBlur = 4;
         let textX = (lineStart.x + lineEnd.x) / 2 + 5; // Добавляем отступ по X
         let textY = (lineStart.y + lineEnd.y) / 2 - 5; // Добавляем отступ по Y
         overlayCtx.fillText(`Расстояние: ${cellsWidth} x ${cellsHeight}`, textX, textY);
@@ -1634,16 +1638,18 @@ function drawSelectionOverlay() {
     const height = (Math.abs(selectionEnd.y - selectionStart.y) + 1) * cellSize;
     
     overlayCtx.save();
-    overlayCtx.strokeStyle = '#0066ff';
-    overlayCtx.lineWidth = 2;
+    overlayCtx.strokeStyle = selectionColor; // Используем цвет выделения
+    overlayCtx.lineWidth = 3; // Увеличиваем толщину линии
     overlayCtx.setLineDash([5, 3]);
     overlayCtx.strokeRect(startX, startY, width, height);
     
     // Отображаем размеры выделения
     const cellsWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
     const cellsHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
-    overlayCtx.font = '14px Arial';
-    overlayCtx.fillStyle = '#0066ff';
+    overlayCtx.font = 'bold 14px Arial';
+    overlayCtx.fillStyle = selectionColor; // Используем цвет выделения
+    overlayCtx.shadowColor = 'rgba(255, 255, 255, 0.8)'; // Добавляем подсветку
+    overlayCtx.shadowBlur = 4;
     overlayCtx.fillText(`${cellsWidth} x ${cellsHeight}`, startX, startY - 5);
     
     overlayCtx.restore();
@@ -1775,7 +1781,7 @@ canvas.addEventListener('mouseup', (e) => {
 function drawSavedSelection(selection) {
     savedOverlayCtx.save();
     savedOverlayCtx.strokeStyle = selection.color;
-    savedOverlayCtx.lineWidth = 2;
+    savedOverlayCtx.lineWidth = 3; // Увеличиваем толщину линии
     savedOverlayCtx.setLineDash([5, 3]);
     savedOverlayCtx.strokeRect(
         selection.startX,
