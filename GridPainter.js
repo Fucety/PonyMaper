@@ -853,16 +853,49 @@ function updateLayerList() {
             const layerDiv = document.createElement('div');
             layerDiv.className = 'layer-item';
             layerDiv.draggable = true;
-            layerDiv.innerText = item.name;
-            layerDiv.onclick = () => selectLayer([index]);
-            layerDiv.ondblclick = () => {
+            const nameSpan = document.createElement('span');
+            nameSpan.innerText = item.name;
+            // Назначаем dblclick только на nameSpan для переименования
+            nameSpan.ondblclick = (e) => {
+                e.stopPropagation();
                 const newName = prompt("Введите новое имя для слоя:", item.name);
-                if(newName) {
-                    item.name = newName;
+                if(newName && newName.trim()){
+                    item.name = newName.trim();
                     updateLayerList();
                     redrawAllLayers();
                 }
             };
+            layerDiv.appendChild(nameSpan);
+            
+            // Выделяем текущий слой при клике по контейнеру
+            layerDiv.onclick = () => { 
+                currentLayerIndex = [index]; 
+                selectedNestedLayer = item; 
+                updateLayerList(); 
+            };
+            
+            // Добавляем кнопки видимости и удаления
+            const visibilityBtn = document.createElement('button');
+            visibilityBtn.className = 'visibility-btn' + (item.visible ? '' : ' hidden');
+            visibilityBtn.innerHTML = '👁';
+            visibilityBtn.onclick = (e) => {
+                e.stopPropagation();
+                item.visible = !item.visible;
+                updateLayerList();
+                redrawAllLayers();
+            };
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.innerHTML = '×';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteLayer(index);
+                updateLayerList();
+            };
+            // Добавляем кнопки в контейнер
+            layerDiv.appendChild(visibilityBtn);
+            layerDiv.appendChild(delBtn);
+            
             layerDiv.ondragstart = (e) => {
                 e.dataTransfer.setData('text/plain', JSON.stringify({from: 'global', index}));
                 layerDiv.classList.add('dragging');
@@ -885,14 +918,6 @@ function updateLayerList() {
                 updateLayerList();
                 redrawAllLayers();
             };
-            const delBtn = document.createElement('button');
-            delBtn.className = 'delete-btn';
-            delBtn.innerHTML = '×'; // Используем символ Unicode вместо спрайта
-            delBtn.onclick = (e) => {
-                e.stopPropagation();
-                deleteLayer(index);
-            };
-            layerDiv.appendChild(delBtn);
             layerList.appendChild(layerDiv);
         }
     });
@@ -1024,17 +1049,28 @@ function updateLayerList() {
             }
         } else {
             div.className = 'layer-item';
-            div.innerText = item.name;
-            
-            // Выделение текущего слоя
             if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
                 div.classList.add('selected');
             }
+            const nameSpan = document.createElement('span');
+            nameSpan.innerText = item.name;
+            // Назначаем dblclick только на nameSpan для переименования
+            nameSpan.ondblclick = (e) => {
+                e.stopPropagation();
+                const newName = prompt("Введите новое имя для слоя:", item.name);
+                if(newName && newName.trim()){
+                    item.name = newName.trim();
+                    updateLayerList();
+                    redrawAllLayers();
+                }
+            };
+            div.appendChild(nameSpan);
             
-            // Обработчик клика для выбора слоя
-            div.onclick = () => {
-                currentLayerIndex = path;
-                updateLayerList();
+            // Выделяем текущий слой при клике по контейнеру
+            div.onclick = () => { 
+                currentLayerIndex = path; 
+                selectedNestedLayer = item; 
+                updateLayerList(); 
                 redrawAllLayers();
             };
             
@@ -1162,6 +1198,7 @@ function redrawAllLayers() {
         // Проходим по массиву в обратном порядке для правильного наложения
         for (let i = items.length - 1; i >= 0; i--) {
             const layer = items[i];
+            // Убираем return и просто пропускаем невидимый слой
             if (!layer.visible) continue;
             
             if (layer.isFolder) {
@@ -1312,12 +1349,14 @@ function createLayerElement(item, path) {
         }
     } else { // Обычный слой
         div.className = 'layer-item';
-        div.innerText = item.name;
         if (JSON.stringify(currentLayerIndex) === JSON.stringify(path)) {
             div.classList.add('selected');
         }
-        div.onclick = () => { selectLayer(path); selectedNestedLayer = item; updateLayerList(); };
-        div.ondblclick = () => {
+        const nameSpan = document.createElement('span');
+        nameSpan.innerText = item.name;
+        // Назначаем dblclick только на nameSpan для переименования
+        nameSpan.ondblclick = (e) => {
+            e.stopPropagation();
             const newName = prompt("Введите новое имя для слоя:", item.name);
             if(newName && newName.trim()){
                 item.name = newName.trim();
@@ -1325,10 +1364,31 @@ function createLayerElement(item, path) {
                 redrawAllLayers();
             }
         };
+        div.appendChild(nameSpan);
+        
+        // Выделяем текущий слой при клике по контейнеру
+        div.onclick = () => { selectLayer(path); selectedNestedLayer = item; updateLayerList(); };
+        // Изменяем кнопку видимости:
+        const visibilityBtn = document.createElement('button');
+        // Всегда показываем значок глаза, но добавляем класс hidden, если слой невидим
+        visibilityBtn.className = 'visibility-btn' + (item.visible ? '' : ' hidden');
+        visibilityBtn.innerHTML = '👁';
+        visibilityBtn.onclick = (e) => {
+            e.stopPropagation();
+            item.visible = !item.visible;
+            updateLayerList();
+            redrawAllLayers();
+        };
         const delBtn = document.createElement('button');
         delBtn.className = 'delete-btn';
         delBtn.innerHTML = '×';
-        delBtn.onclick = (e) => { e.stopPropagation(); deleteLayer(path); updateLayerList(); };
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteLayer(path);
+            updateLayerList();
+        };
+        // Добавляем кнопки. Сначала глаз, затем крестик.
+        div.appendChild(visibilityBtn);
         div.appendChild(delBtn);
         
         div.ondragstart = (e) => {
@@ -1531,6 +1591,7 @@ function redrawAllLayers() {
         // Проходим по массиву в обратном порядке для правильного наложения
         for (let i = items.length - 1; i >= 0; i--) {
             const layer = items[i];
+            // Убираем return и просто пропускаем невидимый слой
             if (!layer.visible) continue;
             
             if (layer.isFolder) {
@@ -1786,7 +1847,8 @@ function redrawAllLayers() {
     function drawLayerContent(items) {
         for (let i = items.length - 1; i >= 0; i--) {
             const layer = items[i];
-            if (!layer.visible) return;
+            // Убираем return и просто пропускаем невидимый слой
+            if (!layer.visible) continue;
             
             if (layer.isFolder) {
                 if (layer.layers && layer.layers.length > 0) {

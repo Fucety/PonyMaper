@@ -116,6 +116,10 @@ body {
     margin-bottom: 5px;
     border-radius: 3px;
     color: #fff;
+    position: relative; /* добавлено для абсолютного позиционирования кнопок */
+    padding-right: 60px; /* увеличиваем отступ для двух кнопок */
+    display: flex;
+    align-items: center;
 }
 
 .layer-item.selected {
@@ -140,12 +144,15 @@ body {
 }
 
 .delete-btn {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.7);
     font-size: 16px;
     cursor: pointer;
-    float: right;
     padding: 0 5px;
     line-height: 1;
     margin-left: 5px;
@@ -174,15 +181,17 @@ body {
 }
 
 .visibility-btn {
+    position: absolute;
+    right: 25px; /* располагаем левее крестика */
+    top: 50%;
+    transform: translateY(-50%);
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.7);
     font-size: 16px;
     cursor: pointer;
-    float: right;
-    padding: 0 5px;
-    margin-left: 5px;
-    margin-right: 5px;
+    padding: 0;
+    line-height: 1;
 }
 
 .visibility-btn:hover {
@@ -190,7 +199,7 @@ body {
 }
 
 .visibility-btn.hidden {
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(0, 0, 0, 0.7); /* потемненный вид для невидимого слоя */
 }
 
 /* Подсветка активной кнопки инструмента */
@@ -229,4 +238,11 @@ body {
     display: none;
     color: #000;
     font-size: 14px;
+}
+
+.layer-name {
+    display: inline-block;
+    padding: 2px 5px;
+    cursor: text;
+    flex-grow: 1;
 }
