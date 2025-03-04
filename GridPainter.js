@@ -365,6 +365,14 @@ canvas.addEventListener('mousemove', (e) => {
         overlayCtx.moveTo(lineStart.x, lineStart.y);
         overlayCtx.lineTo(lineEnd.x, lineEnd.y);
         overlayCtx.stroke();
+        // Вывод расстояния в клетках (превью)
+        let cellsWidth = Math.abs(lineEnd.x - lineStart.x) / cellSize;
+        let cellsHeight = Math.abs(lineEnd.y - lineStart.y) / cellSize;
+        overlayCtx.font = "bold 14px sans-serif";
+        overlayCtx.fillStyle = "black";
+        let textX = (lineStart.x + lineEnd.x) / 2 + 5; // Добавляем отступ по X
+        let textY = (lineStart.y + lineEnd.y) / 2 - 5; // Добавляем отступ по Y
+        overlayCtx.fillText(`Расстояние: ${cellsWidth} x ${cellsHeight}`, textX, textY);
         overlayCtx.restore();
     } else if (instrument !== 'rectangle') {
         draw(e);
