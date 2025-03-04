@@ -883,6 +883,7 @@ function updateLayerList() {
                 item.visible = !item.visible;
                 updateLayerList();
                 redrawAllLayers();
+                saveProgressToCache(); // Добавлено для сохранения состояния скрытости
             };
             const delBtn = document.createElement('button');
             delBtn.className = 'delete-btn';
@@ -1378,6 +1379,7 @@ function createLayerElement(item, path) {
             item.visible = !item.visible;
             updateLayerList();
             redrawAllLayers();
+            saveProgressToCache(); // Добавлено для сохранения состояния скрытости
         };
         const delBtn = document.createElement('button');
         delBtn.className = 'delete-btn';
